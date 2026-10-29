@@ -875,10 +875,13 @@ function botInput(bot,dt){
 
 // ===== Modelos 3D (Sketchfab, CC BY 4.0). Si no cargan, se quedan los de respaldo =====
 const gltfLoader=new GLTFLoader(); gltfLoader.setMeshoptDecoder(MeshoptDecoder);
-// .glb comprimido (GitHub Pages); si no existe, la versión .json (el artifact de Claude no sirve .glb)
+// En GitHub Pages los archivos grandes se cortan, así que ahí se bajan de jsDelivr (copia del mismo repo).
+// Si no, el .glb comprimido; si no existe, la versión .json (el artifact de Claude no sirve .glb).
 function loadModel(name,onLoad){
-  gltfLoader.load(`models/${name}.glb`,onLoad,undefined,()=>gltfLoader.load(`models/${name}.json`,onLoad,undefined,
-    e=>console.warn(`No se pudo cargar ${name}, uso el modelo de respaldo`,e)));
+  const urls=[`models/${name}.glb`,`models/${name}.json`];
+  if(location.hostname.endsWith('github.io')) urls.unshift(`https://cdn.jsdelivr.net/gh/biologyngc/rocket@main/models/${name}.glb`);
+  const next=i=>i<urls.length?gltfLoader.load(urls[i],onLoad,undefined,()=>next(i+1)):console.warn(`No se pudo cargar ${name}, uso el modelo de respaldo`);
+  next(0);
 }
 function fitCarModel(scene){
   let head=null; scene.traverse(o=>{ if(o.isMesh&&/headlight/i.test(o.name)) head=o; });
