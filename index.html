@@ -184,6 +184,7 @@ table.binds .k.wait{border-color:var(--boost);color:var(--boost)}
 <script type="module">
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from 'three/addons/libs/meshopt_decoder.module.js';
 import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
 import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
 import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
@@ -873,7 +874,12 @@ function botInput(bot,dt){
 }
 
 // ===== Modelos 3D (Sketchfab, CC BY 4.0). Si no cargan, se quedan los de respaldo =====
-const gltfLoader=new GLTFLoader();
+const gltfLoader=new GLTFLoader(); gltfLoader.setMeshoptDecoder(MeshoptDecoder);
+// .glb comprimido (GitHub Pages); si no existe, la versión .json (el artifact de Claude no sirve .glb)
+function loadModel(name,onLoad){
+  gltfLoader.load(`models/${name}.glb`,onLoad,undefined,()=>gltfLoader.load(`models/${name}.json`,onLoad,undefined,
+    e=>console.warn(`No se pudo cargar ${name}, uso el modelo de respaldo`,e)));
+}
 function fitCarModel(scene){
   let head=null; scene.traverse(o=>{ if(o.isMesh&&/headlight/i.test(o.name)) head=o; });
   const hb=head?new THREE.Box3().setFromObject(head):null;
@@ -884,21 +890,21 @@ function fitCarModel(scene){
   wrap.scale.setScalar(s); wrap.position.set(-c.x*s,-REST_H-b.min.y*s,-c.z*s);
   return wrap;
 }
-gltfLoader.load('models/fennec.json',gltf=>{
+loadModel('fennec',gltf=>{
   const base=fitCarModel(gltf.scene);
   for(const car of [player,bot]){
     const m=base.clone(true);
     if(car.team==='orange') m.traverse(o=>{ if(o.isMesh&&/body/i.test(o.material.name)){ o.material=o.material.clone(); o.material.color.setHex(0xff6a10); } });
     car.mesh.prim.visible=false; car.mesh.add(m);
   }
-},undefined,e=>console.warn('No se pudo cargar el Fennec, uso el modelo de respaldo',e));
-gltfLoader.load('models/ball.json',gltf=>{
+});
+loadModel('ball',gltf=>{
   const m=gltf.scene, b=new THREE.Box3().setFromObject(m), size=b.getSize(new V()), c=b.getCenter(new V());
   const s=BALL_R/(Math.max(size.x,size.y,size.z)/2);
   m.scale.setScalar(s); m.position.copy(c).multiplyScalar(-s);
   m.traverse(o=>{ if(o.isMesh&&o.material.emissive) o.material.emissive.setHex(0x2a2a2a); });
   ball.mesh.material.visible=false; ball.mesh.add(m);
-},undefined,e=>console.warn('No se pudo cargar el balón, uso el modelo de respaldo',e));
+});
 
 // ===== Juego y modos =====
 const player=new Car('blue'), bot=new Car('orange');
